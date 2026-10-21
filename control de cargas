@@ -1,0 +1,96 @@
+% =========================================================================
+% Script: Algoritmo de Control y Cargas (SIGE) - Reto 3
+% Curso: Software para Ingeniería - UNAD
+% Estudiante: Edwin Cárdenas Ossa
+% Programa: Ingeniería Electrónica
+% Descripción: Simulación horaria del balance energético y gestión de cargas
+% =========================================================================
+
+clear; clc; close all;
+
+horas = 24;                     
+cap_bat = 100;                  
+soc_inicial = 50;               
+
+SOC = zeros(1, horas);
+estado_alumbrado = strings(1, horas); 
+estado_bombeo = strings(1, horas);
+estado_escuela = strings(1, horas);
+
+SOC(1) = soc_inicial;
+
+E_gen = [10, 5, 2, 5, 20, 50, 80, 110, 130, 50, 90, 50, 130, 110, 80, 50, 30, 15, 5, 2, 5, 10, 12, 10]; 
+E_dem = 60 * ones(1, horas); 
+
+for h = 1:horas
+    
+    if h == 1
+        soc_actual = soc_inicial;
+    else
+        soc_actual = SOC(h-1);
+    end
+    
+    gen = E_gen(h);
+    dem = E_dem(h);
+    
+   
+    if gen >= dem 
+        excedente = gen - dem;
+        soc_nuevo = soc_actual + (excedente / cap_bat) * 100;
+    else 
+        faltante = dem - gen;
+        soc_nuevo = soc_actual - (faltante / cap_bat) * 100;
+    end
+    
+    
+    if soc_nuevo > 100
+        soc_nuevo = 100;
+    elseif soc_nuevo < 0
+        soc_nuevo = 0;
+    end
+    
+    SOC(h) = soc_nuevo;
+    
+    if soc_nuevo > 40
+        estado_alumbrado(h) = "Encendido";
+        estado_bombeo(h) = "Encendido";
+        estado_escuela(h) = "Encendido";
+        
+    elseif soc_nuevo > 20 && soc_nuevo <= 40
+        estado_alumbrado(h) = "Apagado";
+        estado_bombeo(h) = "Encendido";
+        estado_escuela(h) = "Encendido";
+        
+    else
+        estado_alumbrado(h) = "Apagado";
+        estado_bombeo(h) = "Apagado";
+        estado_escuela(h) = "Encendido";
+    end
+    
+end
+
+figure('Name', 'Simulación SIGE - Reto 3 - Edwin Cárdenas Ossa', 'Color', 'white');
+
+subplot(2,1,1);
+plot(1:horas, E_gen, '-o', 'LineWidth', 2, 'DisplayName', 'Generación Híbrida (E_{gen})');
+hold on;
+plot(1:horas, E_dem, '-s', 'LineWidth', 2, 'DisplayName', 'Demanda Total (E_{dem})');
+grid on;
+xlabel('Tiempo (Horas)');
+ylabel('Energía (kWh)');
+title({'Balance Energético Hora por Hora', 'Estudiante: Edwin Cárdenas Ossa - Ingeniería Electrónica'});
+legend('Location', 'northeast');
+
+subplot(2,1,2);
+plot(1:horas, SOC, '-*', 'LineWidth', 2, 'Color', 'm', 'DisplayName', 'SOC (%)');
+hold on;
+yline(40, '--r', 'Umbral Alerta (40%)', 'LineWidth', 1.5, 'LabelHorizontalAlignment', 'left');
+yline(20, '--k', 'Umbral Emergencia (20%)', 'LineWidth', 1.5, 'LabelHorizontalAlignment', 'left');
+grid on;
+xlabel('Tiempo (Horas)');
+ylabel('SOC (%)');
+ylim([-5 105]);
+title('Evolución del Estado de Carga de la Batería (SOC) y Umbrales');
+legend('Location', 'northeast');
+
+disp('¡Simulación completada con éxito!');
