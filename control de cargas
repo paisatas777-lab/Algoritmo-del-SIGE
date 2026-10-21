@@ -3,78 +3,85 @@
 % Curso: Software para Ingeniería - UNAD
 % Estudiante: Edwin Cárdenas Ossa
 % Programa: Ingeniería Electrónica
-% Descripción: Simulación horaria del balance energético y gestión de cargas
+% Descripción: Simulación horaria del balance energético, gestión de cargas 
+%              con bucle explícito de 24 horas y condición de finalización.
 % =========================================================================
 
 clear; clc; close all;
 
-horas = 24;                     
-cap_bat = 100;                  
-soc_inicial = 50;               
+total_horas = 24;               % Total de horas a simular
+cap_bat = 100;                  % Capacidad total de la batería en kWh
+soc_actual = 50;                % Condición inicial del SOC en 50%
 
-SOC = zeros(1, horas);
-estado_alumbrado = strings(1, horas); 
-estado_bombeo = strings(1, horas);
-estado_escuela = strings(1, horas);
+SOC = zeros(1, total_horas);
+estado_alumbrado = strings(1, total_horas); 
+estado_bombeo = strings(1, total_horas);
+estado_escuela = strings(1, total_horas);
 
-SOC(1) = soc_inicial;
+E_gen = [10, 30, 2, 30, 20, 50, 80, 110, 130, 70, 90, 80, 130, 110, 80, 50, 30, 15, 40, 2, 40, 10, 12, 10]; 
+E_dem = 30 * ones(1, total_horas); % Demanda constante (Escuela + Bombeo + Alumbrado)
 
-E_gen = [10, 5, 2, 5, 20, 50, 80, 110, 130, 50, 90, 50, 130, 110, 80, 50, 30, 15, 5, 2, 5, 10, 12, 10]; 
-E_dem = 60 * ones(1, horas); 
-
-for h = 1:horas
-    
-    if h == 1
-        soc_actual = soc_inicial;
-    else
-        soc_actual = SOC(h-1);
-    end
+%% Bucle de Iteración Horaria (De la hora 1 hasta la 24)
+h = 1; 
+while h <= total_horas
     
     gen = E_gen(h);
     dem = E_dem(h);
     
-   
-    if gen >= dem 
+        if gen >= dem 
         excedente = gen - dem;
         soc_nuevo = soc_actual + (excedente / cap_bat) * 100;
-    else 
+    else  
         faltante = dem - gen;
         soc_nuevo = soc_actual - (faltante / cap_bat) * 100;
     end
     
-    
+    %%  Verificación y límites físicos de seguridad de la batería
+    % Si hay superávit y la batería no está al 100%, se va cargando.
+    % Se aplican los topes estrictos de 0% y 100%.
     if soc_nuevo > 100
         soc_nuevo = 100;
     elseif soc_nuevo < 0
         soc_nuevo = 0;
     end
     
-    SOC(h) = soc_nuevo;
+        SOC(h) = soc_nuevo;
     
-    if soc_nuevo > 40
+        if soc_nuevo > 40
+        
         estado_alumbrado(h) = "Encendido";
         estado_bombeo(h) = "Encendido";
         estado_escuela(h) = "Encendido";
         
     elseif soc_nuevo > 20 && soc_nuevo <= 40
+        
         estado_alumbrado(h) = "Apagado";
         estado_bombeo(h) = "Encendido";
         estado_escuela(h) = "Encendido";
         
     else
+       
         estado_alumbrado(h) = "Apagado";
         estado_bombeo(h) = "Apagado";
         estado_escuela(h) = "Encendido";
     end
     
+    
+    soc_actual = soc_nuevo;
+    h = h + 1; 
 end
+
+
+disp('=== El algoritmo ha completado exitosamente la iteración de las 24 horas ===');
+disp('Fin del proceso de control SIGE.');
+
 
 figure('Name', 'Simulación SIGE - Reto 3 - Edwin Cárdenas Ossa', 'Color', 'white');
 
 subplot(2,1,1);
-plot(1:horas, E_gen, '-o', 'LineWidth', 2, 'DisplayName', 'Generación Híbrida (E_{gen})');
+plot(1:total_horas, E_gen, '-o', 'LineWidth', 2, 'DisplayName', 'Generación Híbrida (E_{gen})');
 hold on;
-plot(1:horas, E_dem, '-s', 'LineWidth', 2, 'DisplayName', 'Demanda Total (E_{dem})');
+plot(1:total_horas, E_dem, '-s', 'LineWidth', 2, 'DisplayName', 'Demanda Total (E_{dem})');
 grid on;
 xlabel('Tiempo (Horas)');
 ylabel('Energía (kWh)');
@@ -82,15 +89,13 @@ title({'Balance Energético Hora por Hora', 'Estudiante: Edwin Cárdenas Ossa - 
 legend('Location', 'northeast');
 
 subplot(2,1,2);
-plot(1:horas, SOC, '-*', 'LineWidth', 2, 'Color', 'm', 'DisplayName', 'SOC (%)');
+plot(1:total_horas, SOC, '-*', 'LineWidth', 2, 'Color', 'm', 'DisplayName', 'SOC (%)');
 hold on;
-yline(40, '--r', 'Umbral Alerta (40%)', 'LineWidth', 1.5, 'LabelHorizontalAlignment', 'left');
-yline(20, '--k', 'Umbral Emergencia (20%)', 'LineWidth', 1.5, 'LabelHorizontalAlignment', 'left');
+yline(40, '--r', 'LineWidth', 1.5, 'DisplayName', 'Umbral Alerta (40%)');
+yline(20, '--k', 'LineWidth', 1.5, 'DisplayName', 'Umbral Emergencia (20%)');
 grid on;
 xlabel('Tiempo (Horas)');
 ylabel('SOC (%)');
 ylim([-5 105]);
 title('Evolución del Estado de Carga de la Batería (SOC) y Umbrales');
 legend('Location', 'northeast');
-
-disp('¡Simulación completada con éxito!');
